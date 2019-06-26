@@ -34,14 +34,14 @@
 -- does not exist yet but that's okay.
 
 CREATE FUNCTION email_in(cstring)
-   RETURNS email
+   RETURNS EmailAddr
    AS '_OBJWD_/email'
    LANGUAGE C IMMUTABLE STRICT;
 
 -- the output function 'complex_out' takes the internal representation and
 -- converts it into the textual representation.
 
-CREATE FUNCTION email_out(email)
+CREATE FUNCTION email_out(EmailAddr)
    RETURNS cstring
    AS '_OBJWD_/email'
    LANGUAGE C IMMUTABLE STRICT;
@@ -50,14 +50,14 @@ CREATE FUNCTION email_out(email)
 -- and turns its contents into the internal representation.
 
 CREATE FUNCTION email_recv(internal)
-   RETURNS email
+   RETURNS EmailAddr
    AS '_OBJWD_/email'
    LANGUAGE C IMMUTABLE STRICT;
 
 -- the binary output function 'complex_send' takes the internal representation
 -- and converts it into a (hopefully) platform-independent bytea string.
 
-CREATE FUNCTION email_send(email)
+CREATE FUNCTION email_send(EmailAddr)
    RETURNS bytea
    AS '_OBJWD_/email'
    LANGUAGE C IMMUTABLE STRICT;
@@ -66,8 +66,8 @@ CREATE FUNCTION email_send(email)
 -- now, we can create the type. The internallength specifies the size of the
 -- memory block required to hold the type (we need two 8-byte doubles).
 
-CREATE TYPE email (
-    internallength = 512,
+CREATE TYPE EmailAddr (
+   internallength = 512,
    input = email_in,
    output = email_out,
    receive = email_recv,
@@ -84,8 +84,8 @@ CREATE TYPE email (
 
 CREATE TABLE test_email (
 
-	a	email,
-	b	email
+	a	EmailAddr,
+	b	EmailAddr
 );
 
 -- data for user-defined types are just strings in the proper textual
@@ -98,58 +98,58 @@ SELECT * FROM test_email;
 
 
 -- first, define the required operators
-CREATE FUNCTION email_lt(Email, Email) RETURNS bool
+CREATE FUNCTION email_lt(EmailAddr, EmailAddr) RETURNS bool
    AS '_OBJWD_/email' LANGUAGE C IMMUTABLE STRICT;
-CREATE FUNCTION email_le(Email, Email) RETURNS bool
+CREATE FUNCTION email_le(EmailAddr, EmailAddr) RETURNS bool
    AS '_OBJWD_/email' LANGUAGE C IMMUTABLE STRICT;
-CREATE FUNCTION email_eq(Email, Email) RETURNS bool
+CREATE FUNCTION email_eq(EmailAddr, EmailAddr) RETURNS bool
    AS '_OBJWD_/email' LANGUAGE C IMMUTABLE STRICT;
-CREATE FUNCTION email_ge(Email, Email) RETURNS bool
+CREATE FUNCTION email_ge(EmailAddr, EmailAddr) RETURNS bool
    AS '_OBJWD_/email' LANGUAGE C IMMUTABLE STRICT;
-CREATE FUNCTION email_gt(Email, Email) RETURNS bool
+CREATE FUNCTION email_gt(EmailAddr, EmailAddr) RETURNS bool
    AS '_OBJWD_/email' LANGUAGE C IMMUTABLE STRICT;
 
 CREATE OPERATOR < (
-   leftarg = Email, rightarg = Email, procedure = email_lt,
+   leftarg = EmailAddr, rightarg = EmailAddr, procedure = email_lt,
    commutator = > , negator = >= ,
    restrict = scalarltsel, join = scalarltjoinsel
 );
 CREATE OPERATOR <= (
-   leftarg = Email, rightarg = Email, procedure = email_le,
+   leftarg = EmailAddr, rightarg = EmailAddr, procedure = email_le,
    commutator = >= , negator = > ,
    restrict = scalarlesel, join = scalarlejoinsel
 );
 CREATE OPERATOR = (
-   leftarg = Email, rightarg = Email, procedure = email_eq,
+   leftarg = EmailAddr, rightarg = EmailAddr, procedure = email_eq,
    commutator = = ,
    -- leave out negator since we didn't create <> operator
    -- negator = <> ,
    restrict = eqsel, join = eqjoinsel
 );
 CREATE OPERATOR >= (
-   leftarg = Email, rightarg = Email, procedure = email_ge,
+   leftarg = EmailAddr, rightarg = EmailAddr, procedure = email_ge,
    commutator = <= , negator = < ,
    restrict = scalargesel, join = scalargejoinsel
 );
 CREATE OPERATOR > (
-   leftarg = Email, rightarg = Email, procedure = email_gt,
+   leftarg = EmailAddr, rightarg = EmailAddr, procedure = email_gt,
    commutator = < , negator = <= ,
    restrict = scalargtsel, join = scalargtjoinsel
 );
 
 -- create the support function too
-CREATE FUNCTION Email_abs_cmp(Email, Email) RETURNS int4
-   AS '_OBJWD_/Email' LANGUAGE C IMMUTABLE STRICT;
+CREATE FUNCTION email_cmp(EmailAddr, EmailAddr) RETURNS int4
+   AS '_OBJWD_/email' LANGUAGE C IMMUTABLE STRICT;
 
 -- now we can make the operator class
 CREATE OPERATOR CLASS Email_ops
-    DEFAULT FOR TYPE Email USING btree AS
+    DEFAULT FOR TYPE EmailAddr USING btree AS
         OPERATOR        1       < ,
         OPERATOR        2       <= ,
         OPERATOR        3       = ,
         OPERATOR        4       >= ,
         OPERATOR        5       > ,
-        FUNCTION        1       Email_abs_cmp(Email, Email);
+        FUNCTION        1       email_cmp(EmailAddr, EmailAddr);
 
 
 -- now, we can define a btree index on Email types. First, let's populate
@@ -168,4 +168,4 @@ SELECT * from test_email where a > 'jas@cse.unsw.edu.au';
 
 -- clean up the example
 DROP TABLE test_email;
-DROP TYPE Email CASCADE;
+DROP TYPE EmailAddr CASCADE;

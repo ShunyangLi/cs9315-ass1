@@ -22,11 +22,11 @@
 
 PG_MODULE_MAGIC;
 
-typedef struct Email
+typedef struct EmailAddr
 {
 	char        local[MAX_SIZE];
     char		domain[MAX_SIZE];
-}			Email;
+}			EmailAddr;
 
 static int check_at(char *str);
 static int isInvalidDomain(char *domain);
@@ -43,7 +43,7 @@ email_in(PG_FUNCTION_ARGS)
 {
 	char	   *str = PG_GETARG_CSTRING(0);
     char       emailAddr[MAX_SIZE*2];
-	Email      *result;
+    EmailAddr  *result;
 
     strcpy(emailAddr, str);
 
@@ -57,7 +57,7 @@ email_in(PG_FUNCTION_ARGS)
 	    char *domain = strtok(NULL, "@");
 
 	    if (isInvalidLocal(local) && isInvalidDomain(domain)) {
-            result = (Email *) palloc(sizeof(Email));
+            result = (EmailAddr *) palloc(sizeof(EmailAddr));
 
             strcpy(result->local, local);
             strcpy(result->domain, domain);
@@ -145,11 +145,11 @@ PG_FUNCTION_INFO_V1(email_out);
 Datum
 email_out(PG_FUNCTION_ARGS)
 {
-	Email      *email = (Email *) PG_GETARG_POINTER(0);
+	EmailAddr  *email = (EmailAddr *) PG_GETARG_POINTER(0);
 	char	   *result;
 
-	result = (char *) palloc(sizeof(Email));
-    snprintf(result, sizeof(Email), "%s@%s", email->local, email->domain);
+	result = (char *) palloc(sizeof(EmailAddr));
+    snprintf(result, sizeof(EmailAddr), "%s@%s", email->local, email->domain);
 
     PG_RETURN_CSTRING(result);
 }
@@ -166,9 +166,9 @@ Datum
 email_recv(PG_FUNCTION_ARGS)
 {
 	StringInfo	buf = (StringInfo) PG_GETARG_POINTER(0);
-	Email    *result;
+	EmailAddr    *result;
 
-	result = (Email *) palloc(sizeof(Email));
+	result = (EmailAddr *) palloc(sizeof(EmailAddr));
 
     strcpy(result->local, pq_getmsgstring(buf));
     strcpy(result->domain, pq_getmsgstring(buf));
@@ -181,7 +181,7 @@ PG_FUNCTION_INFO_V1(email_send);
 Datum
 email_send(PG_FUNCTION_ARGS)
 {
-	Email    *email = (Email *) PG_GETARG_POINTER(0);
+	EmailAddr    *email = (EmailAddr *) PG_GETARG_POINTER(0);
 	StringInfoData buf;
 
 	pq_begintypsend(&buf);
@@ -206,14 +206,14 @@ email_send(PG_FUNCTION_ARGS)
 //#define Mag(c)	((c)->x*(c)->x + (c)->y*(c)->y)
 
 static int
-email_compare(Email * a, Email * b)
+email_compare(EmailAddr * a, EmailAddr * b)
 {
 	char *email_a, *email_b;
-    email_a = (char *) palloc(sizeof(Email));
-    snprintf(email_a, sizeof(Email), "%s@%s", a->local, a->domain);
+    email_a = (char *) palloc(sizeof(EmailAddr));
+    snprintf(email_a, sizeof(EmailAddr), "%s@%s", a->local, a->domain);
 
-    email_b = (char *) palloc(sizeof(Email));
-    snprintf(email_b, sizeof(Email), "%s@%s", b->local, b->domain);
+    email_b = (char *) palloc(sizeof(EmailAddr));
+    snprintf(email_b, sizeof(EmailAddr), "%s@%s", b->local, b->domain);
 
     int res = strcmp(email_a, email_b);
     pfree(email_a);
@@ -228,8 +228,8 @@ PG_FUNCTION_INFO_V1(email_lt);
 Datum
 email_lt(PG_FUNCTION_ARGS)
 {
-	Email    *a = (Email *) PG_GETARG_POINTER(0);
-    Email    *b = (Email *) PG_GETARG_POINTER(1);
+	EmailAddr    *a = (EmailAddr *) PG_GETARG_POINTER(0);
+    EmailAddr    *b = (EmailAddr *) PG_GETARG_POINTER(1);
 
 	PG_RETURN_BOOL(email_compare(a, b) < 0);
 }
@@ -239,8 +239,8 @@ PG_FUNCTION_INFO_V1(email_le);
 Datum
 email_le(PG_FUNCTION_ARGS)
 {
-    Email    *a = (Email *) PG_GETARG_POINTER(0);
-    Email    *b = (Email *) PG_GETARG_POINTER(1);
+    EmailAddr    *a = (EmailAddr *) PG_GETARG_POINTER(0);
+    EmailAddr    *b = (EmailAddr *) PG_GETARG_POINTER(1);
 
 	PG_RETURN_BOOL(email_compare(a, b) <= 0);
 }
@@ -250,8 +250,8 @@ PG_FUNCTION_INFO_V1(email_eq);
 Datum
 email_eq(PG_FUNCTION_ARGS)
 {
-    Email    *a = (Email *) PG_GETARG_POINTER(0);
-    Email    *b = (Email *) PG_GETARG_POINTER(1);
+    EmailAddr    *a = (EmailAddr *) PG_GETARG_POINTER(0);
+    EmailAddr    *b = (EmailAddr *) PG_GETARG_POINTER(1);
 
 	PG_RETURN_BOOL(email_compare(a, b) == 0);
 }
@@ -261,8 +261,8 @@ PG_FUNCTION_INFO_V1(email_ge);
 Datum
 email_ge(PG_FUNCTION_ARGS)
 {
-    Email    *a = (Email *) PG_GETARG_POINTER(0);
-    Email    *b = (Email *) PG_GETARG_POINTER(1);
+    EmailAddr    *a = (EmailAddr *) PG_GETARG_POINTER(0);
+    EmailAddr    *b = (EmailAddr *) PG_GETARG_POINTER(1);
 
 	PG_RETURN_BOOL(email_compare(a, b) >= 0);
 }
@@ -272,8 +272,8 @@ PG_FUNCTION_INFO_V1(email_gt);
 Datum
 email_gt(PG_FUNCTION_ARGS)
 {
-    Email    *a = (Email *) PG_GETARG_POINTER(0);
-    Email    *b = (Email *) PG_GETARG_POINTER(1);
+    EmailAddr    *a = (EmailAddr *) PG_GETARG_POINTER(0);
+    EmailAddr    *b = (EmailAddr *) PG_GETARG_POINTER(1);
 
 	PG_RETURN_BOOL(email_compare(a, b) > 0);
 }
@@ -283,8 +283,8 @@ PG_FUNCTION_INFO_V1(email_cmp);
 Datum
 email_cmp(PG_FUNCTION_ARGS)
 {
-    Email    *a = (Email *) PG_GETARG_POINTER(0);
-    Email    *b = (Email *) PG_GETARG_POINTER(1);
+    EmailAddr    *a = (EmailAddr *) PG_GETARG_POINTER(0);
+    EmailAddr    *b = (EmailAddr *) PG_GETARG_POINTER(1);
 
 	PG_RETURN_INT32(email_compare(a, b));
 }
