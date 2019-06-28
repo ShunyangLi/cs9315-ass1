@@ -141,6 +141,10 @@ CREATE OPERATOR > (
 CREATE FUNCTION email_cmp(EmailAddr, EmailAddr) RETURNS int4
    AS '_OBJWD_/email' LANGUAGE C IMMUTABLE STRICT;
 
+
+CREATE FUNCTION email_hash_index(EmailAddr) RETURNS int4
+   AS '_OBJWD_/email' LANGUAGE C IMMUTABLE STRICT;
+
 -- now we can make the operator class
 CREATE OPERATOR CLASS Email_ops
     DEFAULT FOR TYPE EmailAddr USING btree AS
@@ -151,6 +155,11 @@ CREATE OPERATOR CLASS Email_ops
         OPERATOR        5       > ,
         FUNCTION        1       email_cmp(EmailAddr, EmailAddr);
 
+
+CREATE OPERATOR CLASS Email_ops
+    DEFAULT FOR TYPE EmailAddr USING btree AS
+        OPERATOR        1       = ,
+        FUNCTION        1       email_hash_index(EmailAddress);
 
 -- now, we can define a btree index on Email types. First, let's populate
 -- the table. Note that postgres needs many more tuples to start using the
@@ -168,4 +177,4 @@ SELECT * from test_email where a > 'jas@cse.unsw.edu.au';
 
 -- clean up the example
 DROP TABLE test_email;
-DROP TYPE EmailAddr CASCADE;
+-- DROP TYPE EmailAddr CASCADE;

@@ -288,3 +288,24 @@ email_cmp(PG_FUNCTION_ARGS)
 
 	PG_RETURN_INT32(email_compare(a, b));
 }
+
+
+PG_FUNCTION_INFO_V1(email_hash_index);
+
+Datum
+email_hash_index(PG_FUNCTION_ARGS)
+{
+    EmailAddr    *email = (EmailAddr *) PG_GETARG_POINTER(0);
+    char	     *emailAddr;
+    int32        res;
+
+    emailAddr = (char *) palloc(sizeof(EmailAddr));
+    snprintf(emailAddr, sizeof(EmailAddr), "%s@%s", email->local, email->domain);
+
+    res = hash_any((unsigned char*) emailAddr, strlen(emailAddr));
+    // free the email
+    pfree(emailAddr);
+
+    PG_RETURN_INT32(res);
+}
+

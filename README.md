@@ -1,0 +1,5 @@
+- need convert string into lowercase before email_in function
+- `email_recv and email_send` are not necessary need to delete them
+- the string of email address max length is 512
+- **need to use flexible size of string** otherwise just can get 7/12 marks
+- also need to write other operations
