@@ -3,7 +3,7 @@
 - `email_recv and email_send` are not necessary need to delete them
   - `delete this two function`
 - the string of email address max length is 512
-  - `strlen(str) <= 512`
+  - `strlen(str) <= 512 + 1`
 - **need to use flexible size of string** otherwise just can get 7/12 marks
   - use dynamic calloc for the string
 - also need to write other operations
