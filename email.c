@@ -14,7 +14,7 @@
 #include <regex.h>
 
 
-#define MAX_SIZE 256
+#define MAX_SIZE 513
 #define True 1
 #define False 0
 
@@ -24,13 +24,13 @@ PG_MODULE_MAGIC;
 
 typedef struct EmailAddr
 {
-	char        local[MAX_SIZE];
-    char		domain[MAX_SIZE];
+    int32       length;
+	char        emailAddr[0];
 }			EmailAddr;
 
-static int check_at(char *str);
-static int isInvalidDomain(char *domain);
-static int isInvalidLocal(char *local);
+static int isInvalidEmailAddr(char *emailAddr);
+static void lower(char str[]);
+Datum hash_any(unsigned char *k, int keylen);
 
 /*****************************************************************************
  * Input/Output functions
@@ -41,34 +41,35 @@ PG_FUNCTION_INFO_V1(email_in);
 Datum
 email_in(PG_FUNCTION_ARGS)
 {
-	char	   *str = PG_GETARG_CSTRING(0);
-    char       emailAddr[MAX_SIZE*2];
     EmailAddr  *result;
+    int strLen = strlen(PG_GETARG_CSTRING(0));
 
-    strcpy(emailAddr, str);
+    if (strLen <= MAX_SIZE) {
+        char email[strLen];
+        strcpy(email, PG_GETARG_CSTRING(0));
 
-	if (check_at(emailAddr) != 1) {
-        ereport(ERROR,
-                (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
-                        errmsg("invalid input syntax for email: \"%s\"",
-                               str)));
-	} else {
-	    char *local = strtok(emailAddr, "@");
-	    char *domain = strtok(NULL, "@");
+        if (isInvalidEmailAddr(email)) {
+            // convert the email address into lowercase
+            lower(email);
 
-	    if (isInvalidLocal(local) && isInvalidDomain(domain)) {
-            result = (EmailAddr *) palloc(sizeof(EmailAddr));
+            result = (EmailAddr *) palloc(VARHDRSZ + strlen(email)+1);
+            SET_VARSIZE(result, VARHDRSZ + strlen(email)+1);
 
-            strcpy(result->local, local);
-            strcpy(result->domain, domain);
-	    } else {
+            memmove(result->emailAddr, email, strlen(email)+1);
+
+        } else {
             ereport(ERROR,
                     (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
-                            errmsg("invalid input syntax for email: \"%s\"",
-                                   str)));
-	    }
-	}
+                            errmsg("invalid input syntax for email address: \"%s\"",
+                                   email)));
+        }
 
+    } else {
+        ereport(ERROR,
+                (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
+                        errmsg("the email address length of \"%s\" is invalid",
+                               PG_GETARG_CSTRING(0))));
+    }
 
 	PG_RETURN_POINTER(result);
 }
@@ -76,67 +77,41 @@ email_in(PG_FUNCTION_ARGS)
 
 
 /**
- * check how many @ sign of email address
- * @param str the email address
- * @return the number of @ sign
+ * use regex to match the correct email format
+ * @param emailAddr the email address
+ * @return if the local and domain regex is correct then return true
+ *          otherwise return false
  */
-static int check_at(char *str) {
-    int num = 0, i = 0;
+static int isInvalidEmailAddr(char *emailAddr) {
+    // the flag of check is invalid
+    int isInvalid = False;
+    regex_t email_match;
 
-    for (i = 0; i < strlen(str); i ++) {
-        if (str[i] == '@') {
-            num ++;
+    // the regular expression
+    char *email_regex = "^[a-zA-Z]+(\\-[a-zA-Z0-9]+)*[0-9]*"
+                         "(\\.([a-zA-Z]+(\\-+[a-zA-Z0-9]+)*[0-9]*)+)*"
+                         "@[a-zA-Z]+(\\-[a-zA-Z0-9]+)*[0-9]*"
+                         "\\.[a-zA-Z]+(\\-[a-zA-Z0-9]+)*[0-9]*"
+                         "(\\.([a-zA-Z]+(\\-+[a-zA-Z0-9]+)*[0-9]*)+)*$";
+
+    regcomp(&email_match, email_regex, REG_EXTENDED);
+
+    if (!regexec(&email_match, emailAddr, 0, NULL, 0)) isInvalid = True;
+    // free the regex
+    regfree(&email_match);
+
+    return isInvalid;
+
+}
+
+// convert string into lowercase
+static void lower(char str[]) {
+    int i = 0;
+    for (i = 0; str[i] != '\0'; i ++) {
+        if (str[i] >= 'A' && str[i] <= 'Z') {
+            str[i] = str[i] + 32;
         }
     }
-
-    return num;
-}
-
-/**
- * use regex to match the correct domain format
- * @param domain the domain email
- * @return if the domain regex is correct then return true
- *          otherwise return false
- */
-static int isInvalidDomain(char *domain) {
-    // the flag of check is invalid
-    int isInvalid = False;
-
-    regex_t domain_match;
-    char *domain_regex = "^[a-zA-Z]+(\\-[a-zA-Z0-9]+)*[0-9]*\\."
-                         "[a-zA-Z]+(\\-[a-zA-Z0-9]+)*[0-9]*"
-                         "(\\.([a-zA-Z]+(\\-+[a-zA-Z0-9]+)*[0-9]*)+)*$";
-    regcomp(&domain_match, domain_regex, REG_EXTENDED);
-
-    if (!regexec(&domain_match, domain, 0, NULL, 0)) isInvalid = True;
-    // free the regex
-    regfree(&domain_match);
-
-    return isInvalid;
-
-}
-
-/**
- * use regex to match the correct domain format
- * @param local the local of email
- * @return if the local of email is correct return true
- *          otherwise return false
- */
-static int isInvalidLocal(char *local) {
-    // the flag of check is invalid
-    int isInvalid = False;
-
-    regex_t local_match;
-    char *local_regex = "^[a-zA-Z]+(\\-[a-zA-Z0-9]+)*[0-9]*"
-                        "(\\.([a-zA-Z]+(\\-+[a-zA-Z0-9]+)*[0-9]*)+)*$";
-
-    regcomp(&local_match, local_regex, REG_EXTENDED);
-
-    if (!regexec(&local_match, local, 0, NULL, 0)) isInvalid = True;
-    // free the regex
-    regfree(&local_match);
-
-    return isInvalid;
 }
 
 
@@ -148,49 +123,9 @@ email_out(PG_FUNCTION_ARGS)
 	EmailAddr  *email = (EmailAddr *) PG_GETARG_POINTER(0);
 	char	   *result;
 
-	result = (char *) palloc(sizeof(EmailAddr));
-    snprintf(result, sizeof(EmailAddr), "%s@%s", email->local, email->domain);
-
+    result = psprintf("%s", email->emailAddr);
     PG_RETURN_CSTRING(result);
 }
-
-/*****************************************************************************
- * Binary Input/Output functions
- *
- * These are optional.
- *****************************************************************************/
-
-PG_FUNCTION_INFO_V1(email_recv);
-
-Datum
-email_recv(PG_FUNCTION_ARGS)
-{
-	StringInfo	buf = (StringInfo) PG_GETARG_POINTER(0);
-	EmailAddr    *result;
-
-	result = (EmailAddr *) palloc(sizeof(EmailAddr));
-
-    strcpy(result->local, pq_getmsgstring(buf));
-    strcpy(result->domain, pq_getmsgstring(buf));
-
-	PG_RETURN_POINTER(result);
-}
-
-PG_FUNCTION_INFO_V1(email_send);
-
-Datum
-email_send(PG_FUNCTION_ARGS)
-{
-	EmailAddr    *email = (EmailAddr *) PG_GETARG_POINTER(0);
-	StringInfoData buf;
-
-	pq_begintypsend(&buf);
-    pq_sendstring(&buf, email->local);
-    pq_sendstring(&buf, email->domain);
-
-	PG_RETURN_BYTEA_P(pq_endtypsend(&buf));
-}
-
 
 /*****************************************************************************
  * Operator class for defining B-tree index
@@ -210,10 +145,10 @@ email_compare(EmailAddr * a, EmailAddr * b)
 {
 	char *email_a, *email_b;
     email_a = (char *) palloc(sizeof(EmailAddr));
-    snprintf(email_a, sizeof(EmailAddr), "%s@%s", a->local, a->domain);
+    snprintf(email_a, sizeof(EmailAddr), "%s", a->emailAddr);
 
     email_b = (char *) palloc(sizeof(EmailAddr));
-    snprintf(email_b, sizeof(EmailAddr), "%s@%s", b->local, b->domain);
+    snprintf(email_b, sizeof(EmailAddr), "%s", b->emailAddr);
 
     int res = strcmp(email_a, email_b);
     pfree(email_a);
@@ -300,7 +235,7 @@ email_hash_index(PG_FUNCTION_ARGS)
     int32        res;
 
     emailAddr = (char *) palloc(sizeof(EmailAddr));
-    snprintf(emailAddr, sizeof(EmailAddr), "%s@%s", email->local, email->domain);
+    snprintf(emailAddr, sizeof(EmailAddr), "%s", email->emailAddr);
 
     res = hash_any((unsigned char*) emailAddr, strlen(emailAddr));
     // free the email

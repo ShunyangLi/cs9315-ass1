@@ -51,3 +51,45 @@ void lower(char str[]) {
 }
 ```
 
+- about how to check local and domain part in c, and gonna to have a little change
+
+  ```c
+  static int isInvalidDomain(char *domain) {
+      // the flag of check is invalid
+      int isInvalid = False;
+  
+      regex_t domain_match;
+      char *domain_regex = "^[a-zA-Z]+(\\-[a-zA-Z0-9]+)*[0-9]*\\."
+                           "[a-zA-Z]+(\\-[a-zA-Z0-9]+)*[0-9]*"
+                           "(\\.([a-zA-Z]+(\\-+[a-zA-Z0-9]+)*[0-9]*)+)*$";
+      regcomp(&domain_match, domain_regex, REG_EXTENDED);
+  
+      if (!regexec(&domain_match, domain, 0, NULL, 0)) isInvalid = True;
+      // free the regex
+      regfree(&domain_match);
+  
+      return isInvalid;
+  
+  }
+  ```
+
+  ```c
+  static int isInvalidLocal(char *local) {
+      // the flag of check is invalid
+      int isInvalid = False;
+  
+      regex_t local_match;
+      char *local_regex = "^[a-zA-Z]+(\\-[a-zA-Z0-9]+)*[0-9]*"
+                          "(\\.([a-zA-Z]+(\\-+[a-zA-Z0-9]+)*[0-9]*)+)*$";
+  
+      regcomp(&local_match, local_regex, REG_EXTENDED);
+  
+      if (!regexec(&local_match, local, 0, NULL, 0)) isInvalid = True;
+      // free the regex
+      regfree(&local_match);
+  
+      return isInvalid;
+  }
+  ```
+
+  

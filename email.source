@@ -1,77 +1,21 @@
----------------------------------------------------------------------------
---
--- complex.sql-
---    This file shows how to create a new user-defined type and how to
---    use this new type.
---
---
--- Portions Copyright (c) 1996-2018, PostgreSQL Global Development Group
--- Portions Copyright (c) 1994, Regents of the University of California
---
--- src/tutorial/complex.source
---
----------------------------------------------------------------------------
-
------------------------------
--- Creating a new type:
---	We are going to create a new type called 'complex' which represents
---	complex numbers.
---	A user-defined type must have an input and an output function, and
---	optionally can have binary input and output functions.  All of these
---	are usually user-defined C functions.
------------------------------
-
--- Assume the user defined functions are in _OBJWD_/complex$DLSUFFIX
--- (we do not want to assume this is in the dynamic loader search path).
--- Look at $PWD/complex.c for the source.  Note that we declare all of
--- them as STRICT, so we do not need to cope with NULL inputs in the
--- C code.  We also mark them IMMUTABLE, since they always return the
--- same outputs given the same inputs.
-
--- the input function 'complex_in' takes a null-terminated string (the
--- textual representation of the type) and turns it into the internal
--- (in memory) representation. You will get a message telling you 'complex'
--- does not exist yet but that's okay.
-
 CREATE FUNCTION email_in(cstring)
    RETURNS EmailAddr
    AS '_OBJWD_/email'
    LANGUAGE C IMMUTABLE STRICT;
 
--- the output function 'complex_out' takes the internal representation and
--- converts it into the textual representation.
 
 CREATE FUNCTION email_out(EmailAddr)
    RETURNS cstring
    AS '_OBJWD_/email'
    LANGUAGE C IMMUTABLE STRICT;
 
--- the binary input function 'complex_recv' takes a StringInfo buffer
--- and turns its contents into the internal representation.
-
-CREATE FUNCTION email_recv(internal)
-   RETURNS EmailAddr
-   AS '_OBJWD_/email'
-   LANGUAGE C IMMUTABLE STRICT;
-
--- the binary output function 'complex_send' takes the internal representation
--- and converts it into a (hopefully) platform-independent bytea string.
-
-CREATE FUNCTION email_send(EmailAddr)
-   RETURNS bytea
-   AS '_OBJWD_/email'
-   LANGUAGE C IMMUTABLE STRICT;
-
-
 -- now, we can create the type. The internallength specifies the size of the
 -- memory block required to hold the type (we need two 8-byte doubles).
 
 CREATE TYPE EmailAddr (
-   internallength = 512,
+   internallength = variable,
    input = email_in,
-   output = email_out,
-   receive = email_recv,
-   send = email_send
+   output = email_out
 );
 
 
@@ -91,7 +35,7 @@ CREATE TABLE test_email (
 -- data for user-defined types are just strings in the proper textual
 -- representation.
 
-INSERT INTO test_email VALUES ('jas@cse.unsw.edu.au', 'john-shepherd@hotmail.com');
+INSERT INTO test_email VALUES ('JAS@CSE.unsw.edu.au', 'john-shepherd@hotmail.com');
 INSERT INTO test_email VALUES ('jas@cse', 'x--@gmail.com');
 
 SELECT * FROM test_email;
@@ -156,10 +100,10 @@ CREATE OPERATOR CLASS Email_ops
         FUNCTION        1       email_cmp(EmailAddr, EmailAddr);
 
 
-CREATE OPERATOR CLASS Email_ops
-    DEFAULT FOR TYPE EmailAddr USING btree AS
+CREATE OPERATOR CLASS email_hash
+    DEFAULT FOR TYPE EmailAddr USING hash AS
         OPERATOR        1       = ,
-        FUNCTION        1       email_hash_index(EmailAddress);
+        FUNCTION        1       email_hash_index(EmailAddr);
 
 -- now, we can define a btree index on Email types. First, let's populate
 -- the table. Note that postgres needs many more tuples to start using the
