@@ -149,5 +149,5 @@ SELECT * from test_email where a > 'jas@cse.unsw.edu.au';
 
 
 -- clean up the example
--- DROP TABLE test_email;
+DROP TABLE test_email;
 -- DROP TYPE EmailAddr CASCADE;

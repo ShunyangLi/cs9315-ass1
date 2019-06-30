@@ -88,9 +88,9 @@ static int isInvalidEmailAddr(char *emailAddr) {
     regex_t email_match;
 
     // the regular expression
-    char *email_regex = "^[a-zA-Z]+(\\-[a-zA-Z0-9]+)*[0-9]*"
+    char *email_regex = "^[a-zA-Z]+(\\-[a-zA-Z0-9]+)*[a-zA-Z0-9]*"
                          "(\\.([a-zA-Z]+(\\-+[a-zA-Z0-9]+)*[0-9]*)+)*"
-                         "@[a-zA-Z]+(\\-[a-zA-Z0-9]+)*[0-9]*"
+                         "@[a-zA-Z]+(\\-[a-zA-Z0-9]+)*[a-zA-Z0-9]*"
                          "\\.[a-zA-Z]+(\\-[a-zA-Z0-9]+)*[0-9]*"
                          "(\\.([a-zA-Z]+(\\-+[a-zA-Z0-9]+)*[0-9]*)+)*$";
 
