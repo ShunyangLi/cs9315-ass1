@@ -144,12 +144,22 @@ static int
 email_compare(EmailAddr * a, EmailAddr * b)
 {
 
-    char *emailAddrA, *emailAddrB;
+    char emailA[strlen(a->emailAddr)+1];
+    char emailB[strlen(b->emailAddr)+1];
+    strcpy(emailA, a->emailAddr);
+    strcpy(emailB, b->emailAddr);
 
-    emailAddrA = psprintf("%s", a->emailAddr);
-    emailAddrB = psprintf("%s", b->emailAddr);
+    char *localA = strtok(emailA, "@");
+    char *domainA = strtok(NULL,"@");
 
-    return strcasecmp(emailAddrA, emailAddrB);
+    char *localB = strtok(emailB, "@");
+    char *domainB = strtok(NULL, "@");
+
+    if (strcasecmp(domainA, domainB) != 0) {
+        return strcasecmp(domainA, domainB);
+    }
+
+    return strcasecmp(localA, localB);
 }
 
 static int
