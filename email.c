@@ -31,6 +31,7 @@ typedef struct EmailAddr
 static int isInvalidEmailAddr(char *emailAddr);
 static void lower(char str[]);
 Datum hash_any(unsigned char *k, int keylen);
+static int same_domain(EmailAddr * a, EmailAddr * b);
 
 /*****************************************************************************
  * Input/Output functions
@@ -51,7 +52,6 @@ email_in(PG_FUNCTION_ARGS)
         if (isInvalidEmailAddr(email)) {
             // convert the email address into lowercase
             lower(email);
-
             result = (EmailAddr *) palloc(VARHDRSZ + strlen(email)+1);
             SET_VARSIZE(result, VARHDRSZ + strlen(email)+1);
 
@@ -143,23 +143,34 @@ email_out(PG_FUNCTION_ARGS)
 static int
 email_compare(EmailAddr * a, EmailAddr * b)
 {
-	char *email_a, *email_b;
-    email_a = (char *) palloc(sizeof(EmailAddr));
-    snprintf(email_a, sizeof(EmailAddr), "%s", a->emailAddr);
 
-    email_b = (char *) palloc(sizeof(EmailAddr));
-    snprintf(email_b, sizeof(EmailAddr), "%s", b->emailAddr);
+    char *emailAddrA, *emailAddrB;
 
-    int res = strcmp(email_a, email_b);
-    pfree(email_a);
-    pfree(email_b);
+    emailAddrA = psprintf("%s", a->emailAddr);
+    emailAddrB = psprintf("%s", b->emailAddr);
 
-    return res;
+    return strcasecmp(emailAddrA, emailAddrB);
+}
+
+static int
+same_domain(EmailAddr * a, EmailAddr * b)
+{
+    char emailA[strlen(a->emailAddr)+1];
+    char emailB[strlen(b->emailAddr)+1];
+    strcpy(emailA, a->emailAddr);
+    strcpy(emailB, b->emailAddr);
+
+    char *domainA = strtok(emailA, "@");
+    domainA = strtok(NULL,"@");
+    char *domainB = strtok(emailB, "@");
+    domainB = strtok(NULL, "@");
+
+    return strcasecmp(domainA, domainB);
 }
 
 
 PG_FUNCTION_INFO_V1(email_lt);
-
+// <
 Datum
 email_lt(PG_FUNCTION_ARGS)
 {
@@ -170,7 +181,7 @@ email_lt(PG_FUNCTION_ARGS)
 }
 
 PG_FUNCTION_INFO_V1(email_le);
-
+// <=
 Datum
 email_le(PG_FUNCTION_ARGS)
 {
@@ -181,7 +192,7 @@ email_le(PG_FUNCTION_ARGS)
 }
 
 PG_FUNCTION_INFO_V1(email_eq);
-
+// =
 Datum
 email_eq(PG_FUNCTION_ARGS)
 {
@@ -192,7 +203,7 @@ email_eq(PG_FUNCTION_ARGS)
 }
 
 PG_FUNCTION_INFO_V1(email_ge);
-
+// >=
 Datum
 email_ge(PG_FUNCTION_ARGS)
 {
@@ -203,7 +214,7 @@ email_ge(PG_FUNCTION_ARGS)
 }
 
 PG_FUNCTION_INFO_V1(email_gt);
-
+// >
 Datum
 email_gt(PG_FUNCTION_ARGS)
 {
@@ -214,7 +225,7 @@ email_gt(PG_FUNCTION_ARGS)
 }
 
 PG_FUNCTION_INFO_V1(email_cmp);
-
+// TODO fix here
 Datum
 email_cmp(PG_FUNCTION_ARGS)
 {
@@ -222,6 +233,43 @@ email_cmp(PG_FUNCTION_ARGS)
     EmailAddr    *b = (EmailAddr *) PG_GETARG_POINTER(1);
 
 	PG_RETURN_INT32(email_compare(a, b));
+}
+
+
+PG_FUNCTION_INFO_V1(email_ne);
+// <>
+Datum
+email_ne(PG_FUNCTION_ARGS)
+{
+    EmailAddr    *a = (EmailAddr *) PG_GETARG_POINTER(0);
+    EmailAddr    *b = (EmailAddr *) PG_GETARG_POINTER(1);
+
+    PG_RETURN_BOOL(email_compare(a, b) != 0);
+}
+
+
+PG_FUNCTION_INFO_V1(email_sd);
+// ~
+Datum
+email_sd(PG_FUNCTION_ARGS)
+{
+    EmailAddr    *a = (EmailAddr *) PG_GETARG_POINTER(0);
+    EmailAddr    *b = (EmailAddr *) PG_GETARG_POINTER(1);
+
+    PG_RETURN_BOOL(same_domain(a, b) == 0);
+}
+
+
+
+PG_FUNCTION_INFO_V1(email_nsd);
+// !~
+Datum
+email_nsd(PG_FUNCTION_ARGS)
+{
+    EmailAddr    *a = (EmailAddr *) PG_GETARG_POINTER(0);
+    EmailAddr    *b = (EmailAddr *) PG_GETARG_POINTER(1);
+
+    PG_RETURN_BOOL(same_domain(a, b) != 0);
 }
 
 
@@ -234,8 +282,7 @@ email_hash_index(PG_FUNCTION_ARGS)
     char	     *emailAddr;
     int32        res;
 
-    emailAddr = (char *) palloc(sizeof(EmailAddr));
-    snprintf(emailAddr, sizeof(EmailAddr), "%s", email->emailAddr);
+    emailAddr = psprintf("%s", email->emailAddr);
 
     res = hash_any((unsigned char*) emailAddr, strlen(emailAddr));
     // free the email

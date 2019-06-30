@@ -1,9 +1,11 @@
+-- create the email_in function for input
 CREATE FUNCTION email_in(cstring)
    RETURNS EmailAddr
    AS '_OBJWD_/email'
    LANGUAGE C IMMUTABLE STRICT;
 
 
+-- create the email_out function for oupt
 CREATE FUNCTION email_out(EmailAddr)
    RETURNS cstring
    AS '_OBJWD_/email'
@@ -11,7 +13,6 @@ CREATE FUNCTION email_out(EmailAddr)
 
 -- now, we can create the type. The internallength specifies the size of the
 -- memory block required to hold the type (we need two 8-byte doubles).
-
 CREATE TYPE EmailAddr (
    internallength = variable,
    input = email_in,
@@ -27,7 +28,6 @@ CREATE TYPE EmailAddr (
 -- eg. we can use it in a table
 
 CREATE TABLE test_email (
-
 	a	EmailAddr,
 	b	EmailAddr
 );
@@ -52,6 +52,12 @@ CREATE FUNCTION email_ge(EmailAddr, EmailAddr) RETURNS bool
    AS '_OBJWD_/email' LANGUAGE C IMMUTABLE STRICT;
 CREATE FUNCTION email_gt(EmailAddr, EmailAddr) RETURNS bool
    AS '_OBJWD_/email' LANGUAGE C IMMUTABLE STRICT;
+CREATE FUNCTION email_ne(EmailAddr, EmailAddr) RETURNS bool
+  AS '_OBJWD_/email' LANGUAGE C IMMUTABLE STRICT;
+CREATE FUNCTION email_sd(EmailAddr, EmailAddr) RETURNS bool
+  AS '_OBJWD_/email' LANGUAGE C IMMUTABLE STRICT;
+CREATE FUNCTION email_nsd(EmailAddr, EmailAddr) RETURNS bool
+  AS '_OBJWD_/email' LANGUAGE C IMMUTABLE STRICT;
 
 CREATE OPERATOR < (
    leftarg = EmailAddr, rightarg = EmailAddr, procedure = email_lt,
@@ -67,7 +73,7 @@ CREATE OPERATOR = (
    leftarg = EmailAddr, rightarg = EmailAddr, procedure = email_eq,
    commutator = = ,
    -- leave out negator since we didn't create <> operator
-   -- negator = <> ,
+   negator = <> ,
    restrict = eqsel, join = eqjoinsel
 );
 CREATE OPERATOR >= (
@@ -80,6 +86,26 @@ CREATE OPERATOR > (
    commutator = < , negator = <= ,
    restrict = scalargtsel, join = scalargtjoinsel
 );
+
+CREATE OPERATOR <> (
+   leftarg = EmailAddr, rightarg = EmailAddr, procedure = email_ne,
+   commutator = <> , negator = = ,
+   restrict = neqsel, join = neqjoinsel
+);
+
+
+CREATE OPERATOR ~ (
+   leftarg = EmailAddr, rightarg = EmailAddr, procedure = email_sd,
+   commutator = ~ , negator = !~ ,
+   restrict = eqsel, join = eqjoinsel
+);
+
+CREATE OPERATOR !~ (
+   leftarg = EmailAddr, rightarg = EmailAddr, procedure = email_nsd,
+   commutator = !~ , negator = ~ ,
+   restrict = neqsel, join = neqjoinsel
+);
+
 
 -- create the support function too
 CREATE FUNCTION email_cmp(EmailAddr, EmailAddr) RETURNS int4
@@ -111,8 +137,11 @@ CREATE OPERATOR CLASS email_hash
 INSERT INTO test_email VALUES ('j-a-shepherd@bargain-hunter.com', 'jas@a-very-silly-domain.org');
 INSERT INTO test_email VALUES ('john1988@my-favourite.org', 'jas@cse');
 
-CREATE INDEX test_cplx_ind ON test_email
+CREATE INDEX test_email_bt ON test_email
    USING btree(a Email_ops);
+
+CREATE INDEX test_email_hash ON test_email
+   USING hash(a email_hash);
 
 SELECT * from test_email where a = 'jas@cse.unsw.edu.au';
 SELECT * from test_email where a < 'jas@cse.unsw.edu.au';
@@ -120,5 +149,5 @@ SELECT * from test_email where a > 'jas@cse.unsw.edu.au';
 
 
 -- clean up the example
-DROP TABLE test_email;
+-- DROP TABLE test_email;
 -- DROP TYPE EmailAddr CASCADE;
