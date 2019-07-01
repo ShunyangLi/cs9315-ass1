@@ -32,6 +32,7 @@ static int isInvalidEmailAddr(char *emailAddr);
 static void lower(char str[]);
 Datum hash_any(unsigned char *k, int keylen);
 static int same_domain(EmailAddr * a, EmailAddr * b);
+static int email_compare(EmailAddr * a, EmailAddr * b);
 
 /*****************************************************************************
  * Input/Output functions
@@ -235,7 +236,7 @@ email_gt(PG_FUNCTION_ARGS)
 }
 
 PG_FUNCTION_INFO_V1(email_cmp);
-// TODO fix here
+
 Datum
 email_cmp(PG_FUNCTION_ARGS)
 {
