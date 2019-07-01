@@ -36,7 +36,6 @@ CREATE TABLE test_email (
 -- representation.
 
 INSERT INTO test_email VALUES ('JAS@CSE.unsw.edu.au', 'john-shepherd@hotmail.com');
-INSERT INTO test_email VALUES ('jas@cse', 'x--@gmail.com');
 
 SELECT * FROM test_email;
 
@@ -135,7 +134,6 @@ CREATE OPERATOR CLASS email_hash
 -- the table. Note that postgres needs many more tuples to start using the
 -- btree index during selects.
 INSERT INTO test_email VALUES ('j-a-shepherd@bargain-hunter.com', 'jas@a-very-silly-domain.org');
-INSERT INTO test_email VALUES ('john1988@my-favourite.org', 'jas@cse');
 
 CREATE INDEX test_email_bt ON test_email
    USING btree(a Email_ops);
