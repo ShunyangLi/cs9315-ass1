@@ -47,12 +47,23 @@ email_in(PG_FUNCTION_ARGS)
     int strLen = strlen(PG_GETARG_CSTRING(0));
 
     if (strLen <= MAX_SIZE) {
-        char email[strLen];
+        char email[strLen+1];
         strcpy(email, PG_GETARG_CSTRING(0));
 
         if (isInvalidEmailAddr(email)) {
             // convert the email address into lowercase
+            int local_len, domain_len;
             lower(email);
+            domain_len = strlen(strchr(email, '@'))-1;
+            local_len = strlen(email) - domain_len - 1;
+
+            if (local_len > 256 || domain_len > 256) {
+                ereport(ERROR,
+                        (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
+                                errmsg("the length of local or domain is invalid for email address: \"%s\"",
+                                       email)));
+            }
+
             result = (EmailAddr *) palloc(VARHDRSZ + strlen(email)+1);
             SET_VARSIZE(result, VARHDRSZ + strlen(email)+1);
 
@@ -147,14 +158,16 @@ email_compare(EmailAddr * a, EmailAddr * b)
 
     char emailA[strlen(a->emailAddr)+1];
     char emailB[strlen(b->emailAddr)+1];
+    char *localA, *domainA, *localB, *domainB;
+
     strcpy(emailA, a->emailAddr);
     strcpy(emailB, b->emailAddr);
 
-    char *localA = strtok(emailA, "@");
-    char *domainA = strtok(NULL,"@");
+    localA = strtok(emailA, "@");
+    domainA = strtok(NULL,"@");
 
-    char *localB = strtok(emailB, "@");
-    char *domainB = strtok(NULL, "@");
+    localB = strtok(emailB, "@");
+    domainB = strtok(NULL, "@");
 
     if (strcasecmp(domainA, domainB) != 0) {
         return strcasecmp(domainA, domainB);
@@ -168,12 +181,15 @@ same_domain(EmailAddr * a, EmailAddr * b)
 {
     char emailA[strlen(a->emailAddr)+1];
     char emailB[strlen(b->emailAddr)+1];
+    char *domainA, *domainB;
+
     strcpy(emailA, a->emailAddr);
     strcpy(emailB, b->emailAddr);
 
-    char *domainA = strtok(emailA, "@");
+    domainA = strtok(emailA, "@");
     domainA = strtok(NULL,"@");
-    char *domainB = strtok(emailB, "@");
+
+    domainB = strtok(emailB, "@");
     domainB = strtok(NULL, "@");
 
     return strcasecmp(domainA, domainB);
